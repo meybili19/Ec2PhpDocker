@@ -7,6 +7,7 @@ on:
   pull_request:
     branches: 
       - main
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,11 +32,14 @@ jobs:
     - name: Deploy to EC2
       uses: appleboy/ssh-action@v0.1.6
       with:
-        host: ${{ secrets.HOSTNAME }} 
+        host: ${{ secrets.HOSTNAME }}  # Asegúrate de que este sea el DNS público de tu instancia EC2
         username: ec2-user                
         key: ${{ secrets.EC2_SSH_KEY }}     
         port: 22                           
         script: |
+          echo "Probando conectividad al DNS público"
+          ping -c 4 ${{ secrets.HOSTNAME }} || exit 1  # Verifica que el DNS sea resolvible
+
           docker stop $(docker ps -q) || true
           docker rm $(docker ps -a -q) || true
           docker pull meybili/ec2-practica:latest
