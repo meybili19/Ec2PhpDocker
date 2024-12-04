@@ -27,3 +27,22 @@ jobs:
         context: .
         push: true
         tags: meybili/ec2-practica:latest
+
+    - name: Deploy to EC2
+      run: |
+        # Crea un archivo temporal para la clave privada
+        echo "$EC2_KEY" > ec2_key.pem
+        chmod 600 ec2_key.pem
+
+        # Conéctate a la instancia EC2 y ejecuta los comandos
+        ssh -o StrictHostKeyChecking=no -i ec2_key.pem ec2-user@3.80.70.22 "
+          docker pull meybili/ec2-practica:latest &&
+          docker stop \$(docker ps -q) || true &&
+          docker run -d -p 80:80 meybili/ec2-practica:latest
+        "
+
+        # Elimina el archivo de clave privada por seguridad
+        rm -f ec2_key.pem
+      env:
+        EC2_KEY: ${{ secrets.EC2_KEY }}
+
