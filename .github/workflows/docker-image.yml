@@ -5,42 +5,44 @@ on:
     branches:
       - main
   pull_request:
-    branches: 
+    branches:
       - main
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        push: true
-        tags: meybili/ec2-practica:latest
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: meybili/ec2-practica:latest
 
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@v0.1.6
-      with:
-        host: ${{ secrets.HOSTNAME }}  
-        username: ec2-user                
-        key: ${{ secrets.EC2_SSH_KEY }}     
-        port: 22                           
-        script: |
-          echo "Probando conectividad al DNS público"
-          ping -c 4 ${{ secrets.HOSTNAME }} || exit 1  # Verifica que el DNS sea resolvible
-
-          docker stop $(docker ps -q) || true
-          docker rm $(docker ps -a -q) || true
-          docker pull meybili/ec2-practica:latest
-          docker run -d -p 80:80 meybili/ec2-practica:latest
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.HOSTNAME }} 
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            # Obtener la IP pública de la instancia EC2
+            EC2_PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+            
+            # Detener y eliminar contenedores antiguos si existen
+            docker stop $(docker ps -q) || true
+            docker rm $(docker ps -a -q) || true
+            
+            # Ejecutar el nuevo contenedor pasando la IP pública como variable de entorno
+            docker run -d -p 80:80 -e EC2_PUBLIC_IP=$EC2_PUBLIC_IP meybili/ec2-practica:latest
