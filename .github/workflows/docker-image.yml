@@ -29,10 +29,10 @@ jobs:
         push: true
         tags: meybili/ec2-practica:latest
 
-    - name: Deploy to EC2
+    - name: Deploy to EC2 instance 1
       uses: appleboy/ssh-action@v0.1.6
       with:
-        host: ${{ secrets.HOSTNAME }}  # Asegúrate de que este sea el DNS público de tu instancia EC2
+        host: ${{ secrets.HOSTNAME }}  
         username: ec2-user                
         key: ${{ secrets.EC2_SSH_KEY }}     
         port: 22                           
@@ -40,6 +40,60 @@ jobs:
           echo "Probando conectividad al DNS público"
           ping -c 4 ${{ secrets.HOSTNAME }} || exit 1  # Verifica que el DNS sea resolvible
 
+          docker stop $(docker ps -q) || true
+          docker rm $(docker ps -a -q) || true
+          docker pull meybili/ec2-practica:latest
+          docker run -d -p 80:80 meybili/ec2-practica:latest
+          
+     # Despliegue a la segunda instancia
+    - name: Deploy to EC2 Instance 2
+      uses: appleboy/ssh-action@v0.1.6
+      with:
+        host: ${{ secrets.HOST2_DNS }}  # DNS público de la segunda instancia EC2
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          echo "Probando conectividad al DNS público de la Instancia 2"
+          ping -c 4 ${{ secrets.HOST2_DNS }} || exit 1  # Verifica que el DNS sea resolvible
+          
+          # Detener y eliminar contenedores antiguos
+          docker stop $(docker ps -q) || true
+          docker rm $(docker ps -a -q) || true
+          docker pull meybili/ec2-practica:latest
+          docker run -d -p 80:80 meybili/ec2-practica:latest
+
+    # Despliegue a la tercera instancia
+    - name: Deploy to EC2 Instance 3
+      uses: appleboy/ssh-action@v0.1.6
+      with:
+        host: ${{ secrets.HOST3_DNS }}  # DNS público de la tercera instancia EC2
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          echo "Probando conectividad al DNS público de la Instancia 3"
+          ping -c 4 ${{ secrets.HOST3_DNS }} || exit 1  # Verifica que el DNS sea resolvible
+          
+          # Detener y eliminar contenedores antiguos
+          docker stop $(docker ps -q) || true
+          docker rm $(docker ps -a -q) || true
+          docker pull meybili/ec2-practica:latest
+          docker run -d -p 80:80 meybili/ec2-practica:latest
+
+    # Despliegue a la cuarta instancia
+    - name: Deploy to EC2 Instance 4
+      uses: appleboy/ssh-action@v0.1.6
+      with:
+        host: ${{ secrets.HOST4_DNS }}  # DNS público de la cuarta instancia EC2
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          echo "Probando conectividad al DNS público de la Instancia 4"
+          ping -c 4 ${{ secrets.HOST4_DNS }} || exit 1  # Verifica que el DNS sea resolvible
+          
+          # Detener y eliminar contenedores antiguos
           docker stop $(docker ps -q) || true
           docker rm $(docker ps -a -q) || true
           docker pull meybili/ec2-practica:latest
