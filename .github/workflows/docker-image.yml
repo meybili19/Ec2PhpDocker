@@ -1,48 +1,43 @@
-name: Docker Image CI
+name: Deploy to EC2 on master branch push
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches: 
-      - main
+
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+    - name: Checkout the files
+      uses: actions/checkout@v2
 
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v2
+    - name: Executing remote ssh commands using ssh key
+      uses: appleboy/ssh-action@master
       with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
-
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v4
-      with:
-        context: .
-        push: true
-        tags: meybili/ec2-practica:latest
-
-    - name: Deploy to EC2
-      run: |
-        # Crea un archivo temporal para la clave privada
-        echo "$EC2_KEY" > ec2_key.pem
-        chmod 600 ec2_key.pem
-
-        # Conéctate a la instancia EC2 y ejecuta los comandos
-        ssh -o StrictHostKeyChecking=no -i ec2_key.pem ec2-user@3.80.70.22 "
-          docker pull meybili/ec2-practica:latest &&
-          docker stop \$(docker ps -q) || true &&
+        host: ${{ secrets.HOSTNAME }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.EC2_KEY }}
+        port: 22
+        script: |
+          # Actualiza Docker en la instancia
+          sudo yum update -y
+          sudo yum install -y docker
+          sudo service docker start
+          sudo usermod -aG docker $USER
+          
+          # Autenticación en Docker Hub (opcional si necesitas acceder a imágenes privadas)
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login --username ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          
+          # Detiene cualquier contenedor en ejecución (si los hay)
+          docker stop $(docker ps -q) || true
+          
+          # Elimina contenedores antiguos
+          docker rm $(docker ps -a -q) || true
+          
+          # Descarga la imagen actualizada desde Docker Hub
+          docker pull meybili/ec2-practica:latest
+          
+          # Inicia el contenedor en el puerto 80
           docker run -d -p 80:80 meybili/ec2-practica:latest
-        "
-
-        # Elimina el archivo de clave privada por seguridad
-        rm -f ec2_key.pem
-      env:
-        EC2_KEY: ${{ secrets.EC2_KEY }}
-
