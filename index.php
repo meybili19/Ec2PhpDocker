@@ -4,7 +4,7 @@
 	<title>Ec2 Practica</title>
 </head>
 <body>
-	<p> Mi nombre es Meybili Olivares s</p>
+	<p> Mi nombre es Meybili Olivares srgfr</p>
 	<h1><?php echo gethostname();?></h1>
 </body>
 </html>
