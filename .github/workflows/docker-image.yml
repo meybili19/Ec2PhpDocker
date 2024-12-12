@@ -1,11 +1,8 @@
-name: Docker Image CI
+name: Docker Image CI - Production
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
-    branches: 
+    branches:
       - main
 
 jobs:
@@ -29,33 +26,16 @@ jobs:
         push: true
         tags: meybili/ec2-practica:latest
 
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@v0.1.6
-      with:
-        host: ${{ secrets.HOSTNAME }} 
-        username: ec2-user                
-        key: ${{ secrets.EC2_SSH_KEY }}     
-        port: 22                           
-        script: |
-          echo "Probando conectividad al DNS público"
-          ping -c 4 ${{ secrets.HOSTNAME }} || exit 1  # Verifica que el DNS sea resolvible
+    - name: Deploy to Auto Scaling Group (ASG)
+      run: |
+        # Actualizar todas las instancias del Auto Scaling Group
+        aws autoscaling update-auto-scaling-group \
+          --auto-scaling-group-name "AutoScalingDocker" \
+          --desired-capacity 0  # Detenemos las instancias para que se reinicien con la nueva imagen
 
-          docker stop $(docker ps -q) || true
-          docker rm $(docker ps -a -q) || true
-          docker pull meybili/ec2-practica:latest
-          docker run -d -p 80:80 meybili/ec2-practica:latest
-    - name: Deploy to EC2 second Instance
-      uses: appleboy/ssh-action@v0.1.6
-      with:
-        host: ${{ secrets.HOST2_DNS }} 
-        username: ec2-user                
-        key: ${{ secrets.EC2_SSH_KEY }}     
-        port: 22                           
-        script: |
-          echo "Probando conectividad al DNS público"
-          ping -c 4 ${{ secrets.HOST2_DNS }} || exit 1  # Verifica que el DNS sea resolvible
+        aws autoscaling update-auto-scaling-group \
+          --auto-scaling-group-name "AutoScalingDocker" \
+          --desired-capacity 2  # Reiniciamos el Auto Scaling Group con 2 instancias nuevas
 
-          docker stop $(docker ps -q) || true
-          docker rm $(docker ps -a -q) || true
-          docker pull meybili/ec2-practica:latest
-          docker run -d -p 80:80 meybili/ec2-practica:latest 
+        # Esto actualizará las instancias automáticamente con la nueva imagen
+
