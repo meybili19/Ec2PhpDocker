@@ -1,8 +1,11 @@
-name: Docker Image CI - Production
+name: Docker Image CI
 
 on:
-  pull_request:
+  push:
     branches:
+      - main
+  pull_request:
+    branches: 
       - main
 
 jobs:
@@ -26,16 +29,55 @@ jobs:
         push: true
         tags: meybili/ec2-practica:latest
 
-    - name: Deploy to Auto Scaling Group (ASG)
+    - name: Deploy to EC2 instance for testing
+      if: github.ref != 'refs/heads/main'
+      uses: appleboy/ssh-action@v0.1.6
+      with:
+        host: ${{ secrets.HOSTNAME }}  
+        username: ec2-user                
+        key: ${{ secrets.EC2_SSH_KEY }}     
+        port: 22                           
+        script: |
+          echo "Probando conectividad al DNS público"
+          ping -c 4 ${{ secrets.HOSTNAME }} || exit 1  # Verifica que el DNS sea resolvible
+
+          docker stop $(docker ps -q) || true
+          docker rm $(docker ps -a -q) || true
+          docker pull meybili/ec2-practica:latest
+          docker run -d -p 80:80 meybili/ec2-practica:latest
+
+    - name: Deploy to EC2 instance for testing 2
+      if: github.ref != 'refs/heads/main'
+      uses: appleboy/ssh-action@v0.1.6
+      with:
+        host: ${{ secrets.HOST2_NAME }}  
+        username: ec2-user                
+        key: ${{ secrets.EC2_SSH_KEY }}     
+        port: 22                           
+        script: |
+          echo "Probando conectividad al DNS público"
+          ping -c 4 ${{ secrets.HOST2_NAME }} || exit 1  # Verifica que el DNS sea resolvible
+
+          docker stop $(docker ps -q) || true
+          docker rm $(docker ps -a -q) || true
+          docker pull meybili/ec2-practica:latest
+          docker run -d -p 80:80 meybili/ec2-practica:latest
+
+  deploy_to_production:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+
+    steps:
+    - name: Configure AWS CLI
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+    
+    - name: Update EC2 instances in Auto Scaling Group
       run: |
-        # Actualizar todas las instancias del Auto Scaling Group
-        aws autoscaling update-auto-scaling-group \
-          --auto-scaling-group-name "AutoScalingDocker" \
-          --desired-capacity 0  # Detenemos las instancias para que se reinicien con la nueva imagen
-
-        aws autoscaling update-auto-scaling-group \
-          --auto-scaling-group-name "AutoScalingDocker" \
-          --desired-capacity 2  # Reiniciamos el Auto Scaling Group con 2 instancias nuevas
-
-        # Esto actualizará las instancias automáticamente con la nueva imagen
+        # Actualiza el grupo de autoescalado
+        aws autoscaling update-auto-scaling-group --auto-scaling-group-name AutoScalingDocker --launch-configuration-name my-launch-config
 
