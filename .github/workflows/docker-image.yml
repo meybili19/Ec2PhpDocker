@@ -29,11 +29,10 @@ jobs:
         push: true
         tags: meybili/ec2-practica:latest
 
-    - name: Deploy to EC2 instance for testing
-      if: github.ref != 'refs/heads/main'
+    - name: Deploy to EC2
       uses: appleboy/ssh-action@v0.1.6
       with:
-        host: ${{ secrets.HOSTNAME }}  
+        host: ${{ secrets.HOSTNAME }}  # Asegúrate de que este sea el DNS público de tu instancia EC2
         username: ec2-user                
         key: ${{ secrets.EC2_SSH_KEY }}     
         port: 22                           
@@ -46,17 +45,16 @@ jobs:
           docker pull meybili/ec2-practica:latest
           docker run -d -p 80:80 meybili/ec2-practica:latest
 
-    - name: Deploy to EC2 instance for testing 2
-      if: github.ref != 'refs/heads/main'
+    - name: Deploy to EC2
       uses: appleboy/ssh-action@v0.1.6
       with:
-        host: ${{ secrets.HOST2_NAME }}  
+        host: ${{ secrets.HOST2_DNS }}  # Asegúrate de que este sea el DNS público de tu instancia EC2
         username: ec2-user                
         key: ${{ secrets.EC2_SSH_KEY }}     
         port: 22                           
         script: |
           echo "Probando conectividad al DNS público"
-          ping -c 4 ${{ secrets.HOST2_NAME }} || exit 1  # Verifica que el DNS sea resolvible
+          ping -c 4 ${{ secrets.HOST2_DNS }} || exit 1  # Verifica que el DNS sea resolvible
 
           docker stop $(docker ps -q) || true
           docker rm $(docker ps -a -q) || true
